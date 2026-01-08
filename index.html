@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Grade Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        canvas {
+            border: 2px solid #333;
+            background-color: white;
+            border-radius: 8px;
+        }
+        .container {
+            text-align: center;
+        }
+        .instructions {
+            margin-bottom: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <canvas id="gameCanvas" width="1200" height="600"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Get maxAge from URL params, default to 9
+        const urlParams = new URLSearchParams(window.location.search);
+        const maxAge = parseInt(urlParams.get('maxAge')) || 9;
+        
+        let gameState = 'waiting'; // 'waiting', 'question', 'answering'
+        let currentN = 0;
+        let userInput = '';
+        let correctAnswer = 0;
+        
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        function drawText(text, x, y, fontSize = 96, color = 'black') {
+            ctx.font = `${fontSize}px Arial`;
+            ctx.fillStyle = color;
+            ctx.textAlign = 'center';
+            ctx.fillText(text, x, y);
+        }
+        
+        function drawWaitingScreen() {
+            clearCanvas();
+            drawText('Press Space', canvas.width / 2, canvas.height / 2, 144, '#333');
+        }
+        
+        function drawQuestion() {
+            clearCanvas();
+            const expression = `${currentN} - 5`;
+            drawText(expression, canvas.width / 2 - 200, canvas.height / 2, 128, '#333');
+            
+            if (userInput) {
+                const comparison = getComparison();
+                drawText(comparison, canvas.width / 2, canvas.height / 2, 128, '#666');
+                drawText(userInput, canvas.width / 2 + 200, canvas.height / 2, 128, '#666');
+            }
+        }
+        
+        function getComparison() {
+            const userAnswer = parseInt(userInput);
+            correctAnswer = currentN - 5;
+            
+            if (userAnswer === correctAnswer) {
+                return '=';
+            } else if (userAnswer < correctAnswer) {
+                return '<';
+            } else {
+                return '>';
+            }
+        }
+        
+        function speakQuestion(n) {
+            const text = `What grade are you in if you are ${n} years old?`;
+            const utterance = new SpeechSynthesisUtterance(text);
+            speechSynthesis.speak(utterance);
+        }
+        
+        function speakFeedback(isCorrect, userAnswer) {
+            let text;
+            if (isCorrect) {
+                text = `That's correct! If you are ${currentN} years old, then you will be in grade ${currentN} minus 5, or grade ${currentN - 5}.`;
+            } else if (userAnswer < correctAnswer) {
+                text = "That's too small, try again.";
+            } else {
+                text = "That's too big, try again.";
+            }
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            if (isCorrect) {
+                utterance.onend = () => {
+                    gameState = 'waiting';
+                    drawWaitingScreen();
+                };
+            } else {
+                utterance.onend = () => {
+                    userInput = '';
+                    drawQuestion(); // Reset to just the expression
+                };
+            }
+            
+            speechSynthesis.speak(utterance);
+        }
+        
+        function startNewQuestion() {
+            currentN = Math.floor(Math.random() * (maxAge - 3 + 1)) + 3; // Random between 3 and maxAge inclusive
+            correctAnswer = currentN - 5;
+            userInput = '';
+            gameState = 'question';
+            
+            speakQuestion(currentN);
+            drawQuestion();
+        }
+        
+        function handleAnswer() {
+            const userAnswer = parseInt(userInput);
+            const comparison = getComparison();
+            
+            drawQuestion(); // Redraw with comparison symbol
+            
+            if (comparison === '=') {
+                speakFeedback(true, userAnswer);
+                // Speech feedback will handle the transition back to waiting screen
+            } else {
+                speakFeedback(false, userAnswer);
+                // Speech feedback will handle resetting to just the expression
+            }
+        }
+        
+        function getExpectedDigitCount() {
+            const answer = currentN - 5;
+            return Math.abs(answer).toString().length;
+        }
+        
+        function hasEnoughDigits() {
+            const expectedDigits = getExpectedDigitCount();
+            const userDigits = userInput.replace('-', '').length; // Don't count the minus sign
+            return userDigits >= expectedDigits;
+        }
+        
+        // Event listeners
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space' && gameState === 'waiting') {
+                event.preventDefault();
+                startNewQuestion();
+            } else if (gameState === 'question') {
+                if (event.key >= '0' && event.key <= '9') {
+                    userInput += event.key;
+                    drawQuestion();
+                    
+                    // Auto-respond when user has typed enough digits
+                    if (hasEnoughDigits()) {
+                        setTimeout(() => handleAnswer(), 500); // Small delay to show the input
+                    }
+                } else if (event.key === 'Backspace') {
+                    userInput = userInput.slice(0, -1);
+                    drawQuestion();
+                } else if (event.key === 'Enter' && userInput) {
+                    handleAnswer();
+                } else if (event.key === '-' && userInput === '') {
+                    userInput = '-';
+                    drawQuestion();
+                }
+            }
+        });
+        
+        // Initialize
+        drawWaitingScreen();
+    </script>
+</body>
+</html>
