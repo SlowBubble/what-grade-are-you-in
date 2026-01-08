@@ -81,10 +81,10 @@
             
             if (userAnswer === correctAnswer) {
                 return '=';
-            } else if (userAnswer < correctAnswer) {
-                return '<';
-            } else {
+            } else if (userAnswer > correctAnswer) {
                 return '>';
+            } else {
+                return '<';
             }
         }
         
@@ -94,10 +94,30 @@
             speechSynthesis.speak(utterance);
         }
         
+        function numberToWords(num) {
+            const numbers = {
+                '-2': 'negative two',
+                '-1': 'negative one',
+                '0': 'zero',
+                '1': 'one',
+                '2': 'two',
+                '3': 'three',
+                '4': 'four',
+                '5': 'five',
+                '6': 'six',
+                '7': 'seven',
+                '8': 'eight',
+                '9': 'nine',
+                '10': 'ten'
+            };
+            return numbers[num.toString()] || num.toString();
+        }
+        
         function speakFeedback(isCorrect, userAnswer) {
             let text;
             if (isCorrect) {
-                text = `That's correct! If you are ${currentN} years old, then you will be in grade ${currentN} minus 5, or grade ${currentN - 5}.`;
+                const gradeWords = numberToWords(currentN - 5);
+                text = `That's correct! If you are ${currentN} years old, then you will be in grade ${currentN} minus 5, or grade ${gradeWords}.`;
             } else if (userAnswer < correctAnswer) {
                 text = "That's too small, try again.";
             } else {
